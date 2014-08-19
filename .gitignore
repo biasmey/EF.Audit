@@ -1,0 +1,10 @@
+*.dll
+*.pdb
+*.exe
+EF.Audit/*.user
+EF.Audit/*.suo
+EF.Audit/bin/**/*.*
+EF.Audit/obj/**/*.*
+EF.Audit.Test/bin/**/*.*
+EF.Audit.Test/obj/**/*.*
+EF.Audit/packages/**/*.*
