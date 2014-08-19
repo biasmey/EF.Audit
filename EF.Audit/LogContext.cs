@@ -6,6 +6,9 @@ using System.Linq;
 
 namespace EF.Audit
 {
+    /// <summary>
+    /// This class is only used by interceptor, the extensor method version doesn't need it
+    /// </summary>
     public class LogContext : DbContext, IAuditDbContext
     {
         public DbSet<AuditLog> AuditLogs { get; set; }

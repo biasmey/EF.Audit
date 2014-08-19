@@ -50,11 +50,10 @@
   <ItemGroup>
     <Compile Include="AuditableAttribute.cs" />
     <Compile Include="AuditLog.cs" />
-    <Compile Include="AuditLogInterceptor.cs" />
+    <Compile Include="AuditRecord.cs" />
     <Compile Include="ChangedProperty.cs" />
     <Compile Include="DbContextExts.cs" />
     <Compile Include="IAuditDbContext.cs" />
-    <Compile Include="LogContext.cs" />
     <Compile Include="LogOperation.cs" />
     <Compile Include="NotAuditableAttrubute.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

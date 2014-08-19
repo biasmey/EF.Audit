@@ -7,13 +7,14 @@ using System.Data.Entity.Infrastructure.Interception;
 
 namespace EF.Audit.Test
 {
-    class MyContext : DbContext
+    class MyContext : DbContext, IAuditDbContext
     {
+        public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<Person> Persons { get; set; }
 
         public MyContext()
         {
-            DbInterception.Add(new AuditLogInterceptor());
+            //DbInterception.Add(new AuditLogInterceptor());
         }
     }
 
@@ -27,12 +28,14 @@ namespace EF.Audit.Test
         [Auditable]
         public string Name { get; set; }
 
+        [Auditable]
         public int Age { get; set; }
 
         public Person()
         {
             Dogs = new HashSet<Dog>();
         }
+
         public virtual ICollection<Dog> Dogs { get; set; }
     }
 

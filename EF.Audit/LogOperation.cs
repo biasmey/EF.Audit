@@ -4,6 +4,7 @@ namespace EF.Audit
     {
         Create,
         Update,
-        Delete
+        Delete,
+        Unchanged
     }
 }
