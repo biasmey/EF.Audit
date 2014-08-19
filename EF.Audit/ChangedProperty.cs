@@ -1,6 +1,6 @@
 namespace EF.Audit
 {
-    class ChangedProperty
+    internal class ChangedProperty
     {
         public string Name;
         public object CurrentValue;

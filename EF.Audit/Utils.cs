@@ -7,7 +7,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 
 namespace EF.Audit
 {
-    public static class Utils
+    internal static class Utils
     {
         #region ReflectionExt
 
