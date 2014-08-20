@@ -13,6 +13,7 @@ namespace EF.Audit
 {
     public static class DbContextExts
     {
+        private const string KeySeparator = "►";
         /// <summary>
         /// Saves DbContext changes taking into account Audit
         /// </summary>
@@ -31,20 +32,10 @@ namespace EF.Audit
             {
                 try
                 {
-                    var addedEntries = context.ChangeTracker.Entries().Where(e => e.State == EntityState.Added).ToList();
-                    var modifiedEntries = context.ChangeTracker.Entries().Where(e => e.State == EntityState.Deleted || e.State == EntityState.Modified).ToList();
-
-                    foreach (var entry in modifiedEntries)
-                    {
-                        ApplyAuditLog(context, entry);
-                    }
-
+                    var addedEntries = GetAddedEntries(context);
+                    ModifiedLog(context);
                     var result = context.SaveChanges();
-                    foreach (var entry in addedEntries)
-                    {
-                        ApplyAuditLog(context, entry, LogOperation.Create);
-                    }
-
+                    AddLog(context, addedEntries);
                     result += context.SaveChanges();
                     tram.Commit();
                     return result;
@@ -56,6 +47,8 @@ namespace EF.Audit
                 }
             }
         }
+
+      
 
         /// <summary>
         /// Saves DbContext changes taking into account Audit
@@ -75,20 +68,10 @@ namespace EF.Audit
             {
                 try
                 {
-                    var addedEntries = context.ChangeTracker.Entries().Where(e => e.State == EntityState.Added).ToList();
-                    var modifiedEntries = context.ChangeTracker.Entries().Where(e => e.State == EntityState.Deleted || e.State == EntityState.Modified).ToList();
-
-                    foreach (var entry in modifiedEntries)
-                    {
-                        ApplyAuditLog(context, entry);
-                    }
-
+                    var addedEntries = GetAddedEntries(context);
+                    ModifiedLog(context);
                     var result = await context.SaveChangesAsync();
-                    foreach (var entry in addedEntries)
-                    {
-                        ApplyAuditLog(context, entry, LogOperation.Create);
-                    }
-
+                    AddLog(context, addedEntries);
                     result += await context.SaveChangesAsync();
                     tram.Commit();
                     return result;
@@ -98,6 +81,31 @@ namespace EF.Audit
                     tram.Rollback();
                     return 0;
                 }
+            }
+        }
+
+        private static List<DbEntityEntry> GetAddedEntries<T>(T context) where T : DbContext, IAuditDbContext
+        {
+            return context.ChangeTracker.Entries().Where(e => e.State == EntityState.Added).ToList();
+        }
+        private static void AddLog<T>(T context, List<DbEntityEntry> addedEntries) where T : DbContext, IAuditDbContext
+        {
+            foreach (var entry in addedEntries)
+            {
+                ApplyAuditLog(context, entry, LogOperation.Create);
+            }
+        }
+
+        private static void ModifiedLog<T>(T context) where T : DbContext, IAuditDbContext
+        {
+            var modifiedEntries =
+                context.ChangeTracker.Entries()
+                    .Where(e => e.State == EntityState.Deleted || e.State == EntityState.Modified)
+                    .ToList();
+
+            foreach (var entry in modifiedEntries)
+            {
+                ApplyAuditLog(context, entry);
             }
         }
 
@@ -233,11 +241,46 @@ namespace EF.Audit
 
             foreach (var entry in entityKey.EntityKeyValues)
             {
-                result.Append(string.Format("{0}={1}", entry.Key, entry.Value));
+                result.Append(string.Format("{0}={1}{2}", entry.Key, entry.Value,KeySeparator));
             }
 
             result.Remove(result.Length - 1, 1);
             return result.ToString();
+        }
+
+        /// <summary>
+        /// Get the state of an entity
+        /// </summary>
+        /// <typeparam name="T">Entity type</typeparam>
+        /// <typeparam name="TC">Context type</typeparam>
+        /// <param name="context">The current context</param>
+        /// <param name="date">snapshot date</param>
+        /// <param name="keys"/>object[] keys /param>
+        /// <returns></returns>
+        public static IEnumerable<AuditRecord<T>> GetSnapshot<T, TC>(this TC context, DateTime date, params object[] keys)
+            where T : class
+            where TC : DbContext, IAuditDbContext
+        {
+            var entity = context.Set<T>().Find(keys);
+            var entityKey = context.GetEntityKey(entity);
+            return context.GetSnapshot<T, TC>(date, entityKey);
+        }
+
+        /// <summary>
+        /// Get the state of an entity
+        /// </summary>
+        /// <typeparam name="T">Entity type</typeparam>
+        /// <typeparam name="TC">Context type</typeparam>
+        /// <param name="context">The current context</param>
+        /// <param name="date">snapshot date</param>
+        /// <param name="entity">the entity to check</param>
+        /// <returns></returns>
+        public static IEnumerable<AuditRecord<T>> GetSnapshot<T, TC>(this TC context, DateTime date, T entity)
+            where T : class
+            where TC : DbContext, IAuditDbContext
+        {
+            var entityKey = context.GetEntityKey(entity);
+            return context.GetSnapshot<T, TC>(date, entityKey);
         }
 
         /// <summary>
@@ -273,7 +316,7 @@ namespace EF.Audit
             });
         }
 
-        /// <summary>
+      /// <summary>
         /// Get's an entity changes history from it's creation
         /// </summary>
         /// <typeparam name="T">Entity type</typeparam>
