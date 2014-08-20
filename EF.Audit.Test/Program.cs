@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Linq;
+using System.Security.Claims;
+using System.Security.Principal;
+using System.Threading;
 using EF.Audit;
 using EF.Audit.Test;
 
@@ -11,7 +14,9 @@ namespace ConsoleApplication2
         {
             using (var con = new MyContext())
             {
-
+                var genericIdentity = new GenericIdentity("userTest");
+                var genericPrincipal = new GenericPrincipal(genericIdentity, new string[0]);
+                Thread.CurrentPrincipal = genericPrincipal;
                 var p = new Person { Age = 10, Name = "Pepe" };
                 con.Persons.Add(p);
                 p.Dogs.Add(new Dog { Name = "Dinqui" });

@@ -20,6 +20,7 @@ namespace EF.Audit
         public string EntityFullName { get; set; }
         public byte [] Entity { get; set; }
         public string EntityId { get; set; }
+        public string User { get; set; }
 
         //[NotMapped]
         //public EntityKey EntityKey {

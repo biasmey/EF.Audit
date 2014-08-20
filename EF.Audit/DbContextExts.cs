@@ -6,7 +6,9 @@ using System.Data.Entity.Core.Objects;
 using System.Data.Entity.Infrastructure;
 using System.Data.Entity.SqlServer;
 using System.Linq;
+using System.Security.Principal;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace EF.Audit
@@ -22,6 +24,7 @@ namespace EF.Audit
         /// <returns></returns>
         public static int SaveChangesAndAudit<T>(this T context) where T : DbContext, IAuditDbContext
         {
+            
             var iAuditDb = context as IAuditDbContext;
             if (iAuditDb == null)
             {
@@ -146,6 +149,7 @@ namespace EF.Audit
         /// <param name="logOperation">Audit operation</param>
         private static void ApplyAuditLog<T>(T context, DbEntityEntry entry, LogOperation logOperation) where T : DbContext, IAuditDbContext
         {
+            var user = (Thread.CurrentPrincipal.Identity).Name;
             var includedProperties = new List<string>();
             var entityKey = context.GetEntityKey(entry.Entity).GetEntityString();
             var entityType = entry.Entity.GetType();
@@ -187,6 +191,7 @@ namespace EF.Audit
                         Entity = Utils.Serialize(entry.Entity),
                         EntityId = entityKey,
                         Operation = logOperation,
+                        User = user,
                         OldValue = changedProperty.OriginalValue.ToString(),
                         NewValue = changedProperty.CurrentValue.ToString(),
                         PropertyName = changedProperty.Name
@@ -205,6 +210,7 @@ namespace EF.Audit
                     Entity = Utils.Serialize(entry.Entity),
                     EntityId = entityKey,
                     Operation = logOperation,
+                    User = user
                 };
 
                 context.AuditLogs.Add(log);
