@@ -6,7 +6,6 @@ using System.Data.Entity.Core.Objects;
 using System.Data.Entity.Infrastructure;
 using System.Data.Entity.SqlServer;
 using System.Linq;
-using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,6 +15,7 @@ namespace EF.Audit
     public static class DbContextExts
     {
         private const string KeySeparator = "►";
+
         /// <summary>
         /// Saves DbContext changes taking into account Audit
         /// </summary>
@@ -51,8 +51,6 @@ namespace EF.Audit
             }
         }
 
-      
-
         /// <summary>
         /// Saves DbContext changes taking into account Audit
         /// </summary>
@@ -87,11 +85,142 @@ namespace EF.Audit
             }
         }
 
-        private static List<DbEntityEntry> GetAddedEntries<T>(T context) where T : DbContext, IAuditDbContext
+        /// <summary>
+        /// Get's the entity's key
+        /// </summary>
+        /// <typeparam name="T">Entity type</typeparam>
+        /// <param name="context">The current context</param>
+        /// <param name="entity">Entity</param>
+        /// <returns>The entity key</returns>
+        public static EntityKey GetEntityKey<T>(this IObjectContextAdapter context, T entity) where T : class
+        {
+            if (entity == null)
+            {
+                throw new ArgumentNullException("entity");
+            }
+
+            var oc = context.ObjectContext;
+            ObjectStateEntry ose;
+
+            return oc.ObjectStateManager.TryGetObjectStateEntry(entity, out ose) ? ose.EntityKey : null;
+        }
+
+        /// <summary>
+        /// Get the state of an entity
+        /// </summary>
+        /// <typeparam name="T">Entity type</typeparam>
+        /// <typeparam name="TC">Context type</typeparam>
+        /// <param name="context">The current context</param>
+        /// <param name="date">snapshot date</param>
+        /// <param name="keys"/>object[] keys /param>
+        /// <returns></returns>
+        public static IEnumerable<AuditRecord<T>> GetSnapshot<T, TC>(this TC context, DateTime date, params object[] keys)
+            where T : class
+            where TC : DbContext, IAuditDbContext
+        {
+            var entity = context.Set<T>().Find(keys);
+            var entityKey = context.GetEntityKey(entity);
+            return context.GetSnapshot<T, TC>(date, entityKey);
+        }
+
+        /// <summary>
+        /// Get the state of an entity
+        /// </summary>
+        /// <typeparam name="T">Entity type</typeparam>
+        /// <typeparam name="TC">Context type</typeparam>
+        /// <param name="context">The current context</param>
+        /// <param name="date">snapshot date</param>
+        /// <param name="entity">the entity to check</param>
+        /// <returns></returns>
+        public static IEnumerable<AuditRecord<T>> GetSnapshot<T, TC>(this TC context, DateTime date, T entity)
+            where T : class
+            where TC : DbContext, IAuditDbContext
+        {
+            var entityKey = context.GetEntityKey(entity);
+            return context.GetSnapshot<T, TC>(date, entityKey);
+        }
+
+        /// <summary>
+        /// Get the state of an entity
+        /// </summary>
+        /// <typeparam name="T">Entity type</typeparam>
+        /// <typeparam name="TC">Context type</typeparam>
+        /// <param name="context">The current context</param>
+        /// <param name="date">snapshot date</param>
+        /// <param name="entityKey">the key of the entity to check</param>
+        /// <returns></returns>
+        public static IEnumerable<AuditRecord<T>> GetSnapshot<T, TC>(this TC context, DateTime date, EntityKey entityKey)
+            where T : class
+            where TC : DbContext, IAuditDbContext
+        {
+            if (entityKey == null)
+            {
+                throw new ArgumentNullException("entityKey");
+            }
+
+            var d = date.Date;
+            var key = entityKey.GetEntityString();
+
+            var entityType = typeof(T);
+            var logs = context.AuditLogs.Where(q =>
+                q.EntityFullName.Equals(entityType.FullName, StringComparison.InvariantCultureIgnoreCase) &&
+                SqlFunctions.DateDiff("DAY", q.Created, d) == 0 && q.EntityId == key).ToList();
+
+            return logs.OrderBy(l => l.Created).Select(log => new AuditRecord<T>
+            {
+                Entity = Utils.Deserialize<T>(log.Entity),
+                Date = log.Created
+            });
+        }
+
+        /// <summary>
+        /// Get's an entity changes history from it's creation
+        /// </summary>
+        /// <typeparam name="T">Entity type</typeparam>
+        /// <typeparam name="TC">Context type</typeparam>
+        /// <param name="context">The current context</param>
+        /// <param name="to">Ending date to compare</param>
+        /// <param name="entityKey">The key of the entity to check</param>
+        /// <returns></returns>
+        public static IEnumerable<AuditLog> GetHistory<T, TC>(this TC context, DateTime to, EntityKey entityKey)
+            where T : class
+            where TC : DbContext, IAuditDbContext
+        {
+            return GetHistory<T, TC>(context, DateTime.MinValue, to, entityKey);
+        }
+
+        /// <summary>
+        /// Get's entity changes history in a date range
+        /// </summary>
+        /// <typeparam name="T">Entity type</typeparam>
+        /// <typeparam name="TC">Context type</typeparam>
+        /// <param name="context">The current context</param>
+        /// <param name="from">Starting date to compare</param>
+        /// <param name="to">Ending date to compare</param>
+        /// <param name="entityKey">The key of the entity to check</param>
+        /// <returns></returns>
+        public static IEnumerable<AuditLog> GetHistory<T, TC>(this TC context, DateTime from, DateTime to, EntityKey entityKey)
+            where T : class
+            where TC : DbContext, IAuditDbContext
+        {
+            if (entityKey == null)
+            {
+                throw new ArgumentNullException("entityKey");
+            }
+
+            var key = entityKey.GetEntityString();
+            var entityType = typeof(T);
+            return context.AuditLogs.Where(l =>
+                l.EntityFullName.Equals(entityType.FullName, StringComparison.InvariantCultureIgnoreCase) &&
+                l.Created >= from && l.Created <= to && l.EntityId == key).OrderBy(l => l.Created).ToList();
+        }
+
+        private static IEnumerable<DbEntityEntry> GetAddedEntries<T>(T context) where T : DbContext, IAuditDbContext
         {
             return context.ChangeTracker.Entries().Where(e => e.State == EntityState.Added).ToList();
         }
-        private static void AddLog<T>(T context, List<DbEntityEntry> addedEntries) where T : DbContext, IAuditDbContext
+
+        private static void AddLog<T>(T context, IEnumerable<DbEntityEntry> addedEntries) where T : DbContext, IAuditDbContext
         {
             foreach (var entry in addedEntries)
             {
@@ -217,26 +346,6 @@ namespace EF.Audit
             }
         }
 
-        /// <summary>
-        /// Get's the entity's key
-        /// </summary>
-        /// <typeparam name="T">Entity type</typeparam>
-        /// <param name="context">The current context</param>
-        /// <param name="entity">Entity</param>
-        /// <returns>The entity key</returns>
-        public static EntityKey GetEntityKey<T>(this IObjectContextAdapter context, T entity) where T : class
-        {
-            if (entity == null)
-            {
-                throw new ArgumentNullException("entity");
-            }
-
-            var oc = context.ObjectContext;
-            ObjectStateEntry ose;
-
-            return oc.ObjectStateManager.TryGetObjectStateEntry(entity, out ose) ? ose.EntityKey : null;
-        }
-
         private static string GetEntityString(this EntityKey entityKey)
         {
             var result = new StringBuilder();
@@ -252,116 +361,6 @@ namespace EF.Audit
 
             result.Remove(result.Length - 1, 1);
             return result.ToString();
-        }
-
-        /// <summary>
-        /// Get the state of an entity
-        /// </summary>
-        /// <typeparam name="T">Entity type</typeparam>
-        /// <typeparam name="TC">Context type</typeparam>
-        /// <param name="context">The current context</param>
-        /// <param name="date">snapshot date</param>
-        /// <param name="keys"/>object[] keys /param>
-        /// <returns></returns>
-        public static IEnumerable<AuditRecord<T>> GetSnapshot<T, TC>(this TC context, DateTime date, params object[] keys)
-            where T : class
-            where TC : DbContext, IAuditDbContext
-        {
-            var entity = context.Set<T>().Find(keys);
-            var entityKey = context.GetEntityKey(entity);
-            return context.GetSnapshot<T, TC>(date, entityKey);
-        }
-
-        /// <summary>
-        /// Get the state of an entity
-        /// </summary>
-        /// <typeparam name="T">Entity type</typeparam>
-        /// <typeparam name="TC">Context type</typeparam>
-        /// <param name="context">The current context</param>
-        /// <param name="date">snapshot date</param>
-        /// <param name="entity">the entity to check</param>
-        /// <returns></returns>
-        public static IEnumerable<AuditRecord<T>> GetSnapshot<T, TC>(this TC context, DateTime date, T entity)
-            where T : class
-            where TC : DbContext, IAuditDbContext
-        {
-            var entityKey = context.GetEntityKey(entity);
-            return context.GetSnapshot<T, TC>(date, entityKey);
-        }
-
-        /// <summary>
-        /// Get the state of an entity
-        /// </summary>
-        /// <typeparam name="T">Entity type</typeparam>
-        /// <typeparam name="TC">Context type</typeparam>
-        /// <param name="context">The current context</param>
-        /// <param name="date">snapshot date</param>
-        /// <param name="entityKey">the key of the entity to check</param>
-        /// <returns></returns>
-        public static IEnumerable<AuditRecord<T>> GetSnapshot<T, TC>(this TC context, DateTime date, EntityKey entityKey)
-            where T : class
-            where TC : DbContext, IAuditDbContext
-        {
-            if (entityKey == null)
-            {
-                throw new ArgumentNullException("entityKey");
-            }
-
-            var d = date.Date;
-            var key = entityKey.GetEntityString();
-
-            var entityType = typeof(T);
-            var logs = context.AuditLogs.Where(q =>
-                q.EntityFullName.Equals(entityType.FullName, StringComparison.InvariantCultureIgnoreCase) &&
-                SqlFunctions.DateDiff("DAY", q.Created, d) == 0 && q.EntityId == key).ToList();
-
-            return logs.OrderBy(l => l.Created).Select(log => new AuditRecord<T>
-            {
-                Entity = Utils.Deserialize<T>(log.Entity),
-                Date = log.Created
-            });
-        }
-
-      /// <summary>
-        /// Get's an entity changes history from it's creation
-        /// </summary>
-        /// <typeparam name="T">Entity type</typeparam>
-        /// <typeparam name="TC">Context type</typeparam>
-        /// <param name="context">The current context</param>
-        /// <param name="to">Ending date to compare</param>
-        /// <param name="entityKey">The key of the entity to check</param>
-        /// <returns></returns>
-        public static IEnumerable<AuditLog> GetHistory<T, TC>(this TC context, DateTime to, EntityKey entityKey)
-            where T : class
-            where TC : DbContext, IAuditDbContext
-        {
-            return GetHistory<T, TC>(context, DateTime.MinValue, to, entityKey);
-        }
-
-        /// <summary>
-        /// Get's entity changes history in a date range
-        /// </summary>
-        /// <typeparam name="T">Entity type</typeparam>
-        /// <typeparam name="TC">Context type</typeparam>
-        /// <param name="context">The current context</param>
-        /// <param name="from">Starting date to compare</param>
-        /// <param name="to">Ending date to compare</param>
-        /// <param name="entityKey">The key of the entity to check</param>
-        /// <returns></returns>
-        public static IEnumerable<AuditLog> GetHistory<T, TC>(this TC context, DateTime from, DateTime to, EntityKey entityKey)
-            where T : class
-            where TC : DbContext, IAuditDbContext
-        {
-            if (entityKey == null)
-            {
-                throw new ArgumentNullException("entityKey");
-            }
-
-            var key = entityKey.GetEntityString();
-            var entityType = typeof(T);
-            return context.AuditLogs.Where(l =>
-                l.EntityFullName.Equals(entityType.FullName, StringComparison.InvariantCultureIgnoreCase) &&
-                l.Created >= from && l.Created <= to && l.EntityId == key).OrderBy(l => l.Created).ToList();
         }
     }
 }

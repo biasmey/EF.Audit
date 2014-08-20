@@ -1,16 +1,13 @@
 ﻿using System;
 using System.Linq;
-using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
-using EF.Audit;
-using EF.Audit.Test;
 
-namespace ConsoleApplication2
+namespace EF.Audit.Test
 {
-    class Program
+    static class Program
     {
-        static void Main(string[] args)
+        static void Main()
         {
             using (var con = new MyContext())
             {
@@ -23,7 +20,7 @@ namespace ConsoleApplication2
                 con.SaveChangesAndAudit();
 
                 var dateTime = DateTime.Now;
-                var dog = p.Dogs.FirstOrDefault();
+                var dog = p.Dogs.First();
                 dog.Name = "Campeon";
 
                 p.Age = 20;

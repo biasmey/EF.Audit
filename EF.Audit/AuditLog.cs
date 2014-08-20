@@ -1,7 +1,5 @@
 using System;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Data.Entity.Core;
 
 namespace EF.Audit
 {
@@ -21,11 +19,6 @@ namespace EF.Audit
         public byte [] Entity { get; set; }
         public string EntityId { get; set; }
         public string User { get; set; }
-
-        //[NotMapped]
-        //public EntityKey EntityKey {
-        //    get { return Utils.Deserialize<EntityKey>(EntityIdBytes); }
-        //}
 
         public string OldValue { get; set; }
         public string NewValue { get; set; }
