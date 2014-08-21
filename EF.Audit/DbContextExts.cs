@@ -45,7 +45,7 @@ namespace EF.Audit
                 catch (Exception)
                 {
                     tram.Rollback();
-                    return 0;
+                    throw;
                 }
             }
         }
@@ -216,7 +216,16 @@ namespace EF.Audit
 
         private static IEnumerable<DbEntityEntry> GetAddedEntries(DbContext context)
         {
-            return context.ChangeTracker.Entries().Where(e => e.State == EntityState.Added).ToList();
+            return context.ChangeTracker.Entries().Where(e => e.State == EntityState.Added && IsAuditable(e)).ToList();
+        }
+
+        private static bool IsAuditable(DbEntityEntry entry)
+        {
+            var entityType = entry.Entity.GetType();
+            var result = entry.IsAttr<AuditableAttribute>() ?
+                          entityType.GetProperties().Any(pi => !pi.IsAttr<NotAuditableAttrubute>()) :
+                          entityType.GetProperties().Any(p => p.IsAttr<AuditableAttribute>() && !p.IsAttr<NotAuditableAttrubute>());
+            return result;
         }
 
         private static void AddLog(DbContext context, IEnumerable<DbEntityEntry> addedEntries)
@@ -231,7 +240,7 @@ namespace EF.Audit
         {
             var modifiedEntries =
                 context.ChangeTracker.Entries()
-                    .Where(e => e.State == EntityState.Deleted || e.State == EntityState.Modified)
+                    .Where(e => e.State == EntityState.Deleted || e.State == EntityState.Modified && IsAuditable(e))
                     .ToList();
 
             foreach (var entry in modifiedEntries)
