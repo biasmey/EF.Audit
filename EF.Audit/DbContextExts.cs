@@ -19,12 +19,11 @@ namespace EF.Audit
         /// <summary>
         /// Saves DbContext changes taking into account Audit
         /// </summary>
-        /// <typeparam name="T">Entity type</typeparam>
         /// <param name="context">The current context</param>
         /// <returns></returns>
-        public static int SaveChangesAndAudit<T>(this T context) where T : DbContext, IAuditDbContext
+        public static int SaveChangesAndAudit(this DbContext context)
         {
-            
+            // ReSharper disable once SuspiciousTypeConversion.Global
             var iAuditDb = context as IAuditDbContext;
             if (iAuditDb == null)
             {
@@ -54,11 +53,11 @@ namespace EF.Audit
         /// <summary>
         /// Saves DbContext changes taking into account Audit
         /// </summary>
-        /// <typeparam name="T">Entity type</typeparam>
         /// <param name="context">The current context</param>
         /// <returns></returns>
-        public static async Task<int> SaveChangesAndAuditAsync<T>(this T context) where T : DbContext, IAuditDbContext
+        public static async Task<int> SaveChangesAndAuditAsync(this DbContext context)
         {
+            // ReSharper disable once SuspiciousTypeConversion.Global
             var iAuditDb = context as IAuditDbContext;
             if (iAuditDb == null)
             {
@@ -215,12 +214,12 @@ namespace EF.Audit
                 l.Created >= from && l.Created <= to && l.EntityId == key).OrderBy(l => l.Created).ToList();
         }
 
-        private static IEnumerable<DbEntityEntry> GetAddedEntries<T>(T context) where T : DbContext, IAuditDbContext
+        private static IEnumerable<DbEntityEntry> GetAddedEntries(DbContext context)
         {
             return context.ChangeTracker.Entries().Where(e => e.State == EntityState.Added).ToList();
         }
 
-        private static void AddLog<T>(T context, IEnumerable<DbEntityEntry> addedEntries) where T : DbContext, IAuditDbContext
+        private static void AddLog(DbContext context, IEnumerable<DbEntityEntry> addedEntries)
         {
             foreach (var entry in addedEntries)
             {
@@ -228,7 +227,7 @@ namespace EF.Audit
             }
         }
 
-        private static void ModifiedLog<T>(T context) where T : DbContext, IAuditDbContext
+        private static void ModifiedLog(DbContext context)
         {
             var modifiedEntries =
                 context.ChangeTracker.Entries()
@@ -244,10 +243,9 @@ namespace EF.Audit
         /// <summary>
         /// Register audit information
         /// </summary>
-        /// <typeparam name="T">Entity type</typeparam>
         /// <param name="context">The current context</param>
         /// <param name="entry">DbContext entry to audit</param>
-        private static void ApplyAuditLog<T>(T context, DbEntityEntry entry) where T : DbContext, IAuditDbContext
+        private static void ApplyAuditLog(DbContext context, DbEntityEntry entry)
         {
             LogOperation operation;
             switch (entry.State)
@@ -272,11 +270,10 @@ namespace EF.Audit
         /// <summary>
         /// Register audit information
         /// </summary>
-        /// <typeparam name="T">Entity type</typeparam>
         /// <param name="context">The current context</param>
         /// <param name="entry">DbContext entry to audit</param>
         /// <param name="logOperation">Audit operation</param>
-        private static void ApplyAuditLog<T>(T context, DbEntityEntry entry, LogOperation logOperation) where T : DbContext, IAuditDbContext
+        private static void ApplyAuditLog(DbContext context, DbEntityEntry entry, LogOperation logOperation)
         {
             var user = (Thread.CurrentPrincipal.Identity).Name;
             var includedProperties = new List<string>();
@@ -326,7 +323,8 @@ namespace EF.Audit
                         PropertyName = changedProperty.Name
                     }))
                     {
-                        context.AuditLogs.Add(log);
+                        // ReSharper disable once SuspiciousTypeConversion.Global
+                        ((IAuditDbContext)context).AuditLogs.Add(log);
                     }
                 }
             }
@@ -342,7 +340,8 @@ namespace EF.Audit
                     User = user
                 };
 
-                context.AuditLogs.Add(log);
+                // ReSharper disable once SuspiciousTypeConversion.Global
+                ((IAuditDbContext)context).AuditLogs.Add(log);
             }
         }
 
@@ -356,7 +355,7 @@ namespace EF.Audit
 
             foreach (var entry in entityKey.EntityKeyValues)
             {
-                result.Append(string.Format("{0}={1}{2}", entry.Key, entry.Value,KeySeparator));
+                result.Append(string.Format("{0}={1}{2}", entry.Key, entry.Value, KeySeparator));
             }
 
             result.Remove(result.Length - 1, 1);
