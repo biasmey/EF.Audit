@@ -223,8 +223,8 @@ namespace EF.Audit
         {
             var entityType = entry.Entity.GetType();
             var result = entry.IsAttr<AuditableAttribute>() ?
-                          entityType.GetProperties().Any(pi => !pi.IsAttr<NotAuditableAttrubute>()) :
-                          entityType.GetProperties().Any(p => p.IsAttr<AuditableAttribute>() && !p.IsAttr<NotAuditableAttrubute>());
+                          entityType.GetProperties().Any(pi => !pi.IsAttr<NotAuditableAttribute>()) :
+                          entityType.GetProperties().Any(p => p.IsAttr<AuditableAttribute>() && !p.IsAttr<NotAuditableAttribute>());
             return result;
         }
 
@@ -291,13 +291,13 @@ namespace EF.Audit
 
             if (entry.IsAttr<AuditableAttribute>())
             {
-                var props = entityType.GetProperties().Where(pi => !pi.IsAttr<NotAuditableAttrubute>());
+                var props = entityType.GetProperties().Where(pi => !pi.IsAttr<NotAuditableAttribute>());
                 includedProperties.AddRange(props.Select(pi => pi.Name));
             }
             else
             {
                 var props = entityType.GetProperties()
-                    .Where(p => p.IsAttr<AuditableAttribute>() && !p.IsAttr<NotAuditableAttrubute>());
+                    .Where(p => p.IsAttr<AuditableAttribute>() && !p.IsAttr<NotAuditableAttribute>());
 
                 includedProperties.AddRange(props.Select(pi => pi.Name));
             }
