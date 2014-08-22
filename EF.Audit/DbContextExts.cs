@@ -216,7 +216,7 @@ namespace EF.Audit
 
         private static IEnumerable<DbEntityEntry> GetAddedEntries(DbContext context)
         {
-            return context.ChangeTracker.Entries().Where(e => e.State == EntityState.Added && IsAuditable(e)).ToList();
+            return context.ChangeTracker.Entries().Where(e => e.State == EntityState.Added).ToList();
         }
 
         private static bool IsAuditable(DbEntityEntry entry)
@@ -240,7 +240,7 @@ namespace EF.Audit
         {
             var modifiedEntries =
                 context.ChangeTracker.Entries()
-                    .Where(e => e.State == EntityState.Deleted || e.State == EntityState.Modified && IsAuditable(e))
+                    .Where(e => e.State == EntityState.Deleted || e.State == EntityState.Modified)
                     .ToList();
 
             foreach (var entry in modifiedEntries)
@@ -337,7 +337,7 @@ namespace EF.Audit
                     }
                 }
             }
-            else
+            else if (includedProperties.Any())
             {
                 var log = new AuditLog
                 {
