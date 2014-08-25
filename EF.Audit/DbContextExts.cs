@@ -79,7 +79,7 @@ namespace EF.Audit
                 catch (Exception)
                 {
                     tram.Rollback();
-                    return 0;
+                    throw;
                 }
             }
         }
@@ -284,7 +284,8 @@ namespace EF.Audit
         /// <param name="logOperation">Audit operation</param>
         private static void ApplyAuditLog(DbContext context, DbEntityEntry entry, LogOperation logOperation)
         {
-            var user = (Thread.CurrentPrincipal.Identity).Name;
+            var currentPrincipal = Thread.CurrentPrincipal;
+            var user = currentPrincipal != null? (currentPrincipal.Identity).Name:string.Empty;
             var includedProperties = new List<string>();
             var entityKey = context.GetEntityKey(entry.Entity).GetEntityString();
             var entityType = entry.Entity.GetType();
