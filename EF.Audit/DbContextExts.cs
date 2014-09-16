@@ -328,8 +328,8 @@ namespace EF.Audit
                         EntityId = entityKey,
                         Operation = logOperation,
                         User = user,
-                        OldValue = changedProperty.OriginalValue.ToString(),
-                        NewValue = changedProperty.CurrentValue.ToString(),
+                        OldValue = Convert.ToString(changedProperty.OriginalValue),
+                        NewValue = Convert.ToString(changedProperty.CurrentValue),
                         PropertyName = changedProperty.Name
                     }))
                     {
