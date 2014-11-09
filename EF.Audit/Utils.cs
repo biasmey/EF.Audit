@@ -18,7 +18,8 @@ namespace EF.Audit
 
         public static bool IsAttr<T>(this DbEntityEntry entry) where T : Attribute
         {
-            return entry.Entity.GetType().CustomAttributes.Any(q => q.AttributeType == typeof(T));
+            var entity = System.Data.Entity.Core.Objects.ObjectContext.GetObjectType(entry.Entity.GetType());
+            return entity.CustomAttributes.Any(q => q.AttributeType == typeof(T));
         }
 
         public static byte[] Serialize<T>(T entity) where T : class
