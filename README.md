@@ -1,4 +1,4 @@
-Ef.Audit
+Ef.Audit (obsolete, the new version is [EF.Audit.Core](https://github.com/biasmey/EF.Audit.Core))
 ========
 Easy audit capabilities for EF projects.
 
